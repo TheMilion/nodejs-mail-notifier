@@ -54,7 +54,6 @@ Notifier.prototype.start = function () {
     });
     self.imap.once('close', function (haserr) {
         self.dbg('imap close : %s', haserr ? 'errored ' + haserr : 'normal');
-        self.emit('end');
     });
     self.imap.on('uidvalidity', function (uidvalidity) {
         self.dbg('new uidvalidity : %s', uidvalidity);
@@ -110,15 +109,24 @@ Notifier.prototype.scan = function (callback) {
                 flags = attrs.flags;
                 self.dbg("Message uid", attrs.uid);                                                               
             }); 
-            var mp = new MailParser();
-            mp.once('end', function (mail) {
-                mail.uid = uid;
-                mail.flags = flags;
-                self.emit('mail', mail);
-				self.dbg('found mail '+mail.headers["message-id"]);
-            });
+            
+            // var mp = new MailParser();
+            // mp.once('end', function (mail) {
+            //     mail.uid = uid;
+            //     mail.flags = flags;
+            //     self.emit('mail', mail);
+			// 	self.dbg('found mail '+mail.headers["message-id"]);
+            // });
             msg.once('body', function (stream, info) {
-                stream.pipe(mp);
+                //Questo permette la creazione dell'mbox
+                var buffer = '';
+                stream.on('data', function(chunk) {
+                  buffer += chunk.toString('utf8');
+                });
+                stream.once('end', function() {
+                    self.emit('mail', buffer);
+                  });
+                // stream.pipe(mp);
             });
         });
         fetch.once('end', function () {
@@ -141,8 +149,9 @@ Notifier.prototype.stop = function () {
     if (this.imap.state !== 'disconnected') {
         this.imap.end();
     }
-
     self.dbg('notifier stopped');
+    //aggiunto da peppe
+    self.emit('end',"end connection")
     return this;
 };
 
